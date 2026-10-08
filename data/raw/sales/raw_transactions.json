@@ -1,0 +1,29 @@
+[
+  {
+    "transaction_id": "T001",
+    "customer_email": "  ANA@EXAMPLE.COM ",
+    "customer_name": "Ana Silva",
+    "country_code": " br ",
+    "transaction_date": "2026-10-01",
+    "amount": "125.50",
+    "quantity": 2
+  },
+  {
+    "transaction_id": "T002",
+    "customer_email": "joao@example.com",
+    "customer_name": "João Souza",
+    "country_code": "us",
+    "transaction_date": "2026-10-02",
+    "amount": "80.00",
+    "quantity": 1
+  },
+  {
+    "transaction_id": null,
+    "customer_email": "ignorado@example.com",
+    "customer_name": "Linha inválida",
+    "country_code": "br",
+    "transaction_date": "2026-10-03",
+    "amount": "10.00",
+    "quantity": 1
+  }
+]

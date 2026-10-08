@@ -1,0 +1,4 @@
+pyspark==3.4.1
+pytest==7.4.0
+delta-spark==2.4.0
+flake8==6.1.0
