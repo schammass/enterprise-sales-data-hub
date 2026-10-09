@@ -19,5 +19,5 @@ steps:
 
   - script: |
       flake8 enterprise_sales_data_hub notebooks tests
-      pytest tests/
+      python -m pytest tests/
     displayName: "Lint and run unit tests"
