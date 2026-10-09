@@ -17,33 +17,44 @@ sales transactions into a dimensional model for Power BI.
 │           └── raw_transactions.json
 ├── enterprise_sales_data_hub/
 │   └── cleansing.py
+├── fabric_workspace/
+│   └── <Fabric-managed item folders>
 ├── notebooks/
-│   └── 01_bronze_to_silver.py
-├── sql/
-│   └── 01_gold_star_schema.sql
+│   ├── 01_bronze_to_silver.py
+│   └── 02_silver_to_gold.py
 ├── tests/
 │   ├── conftest.py
-│   └── test_cleansing.py
+│   ├── test_cleansing.py
+│   └── test_gold_model.py
 ├── .gitignore
 ├── README.md
 └── requirements.txt
 ```
 
+`fabric_workspace/` is the target directory for native Fabric item definitions
+created by Fabric Git integration. Fabric manages the item folders and their
+metadata there. Do not move standalone Python or SQL source files into this
+directory: they aren't converted into Fabric items by being placed there.
+
+The `notebooks/` Python file is a source example for local development; it is
+not the native notebook definition from the live workspace. The live notebook
+and other supported workspace items become versioned under `fabric_workspace/`
+when the workspace is connected and synced.
+
 ## 1. Local setup and Git
 
-Initialize the repository if it has not already been initialized, then create
-and activate a Python 3.10 virtual environment:
+Create and activate a Python virtual environment:
 
 ```bash
-git init
-python3.10 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
 The Azure Pipeline in `.azure-pipelines/fabric-ci-cd.yml` runs Flake8 and the
-PySpark unit tests on pushes to `main`. In Azure DevOps, create a pipeline that
-points to this YAML file.
+PySpark unit tests on pushes to `main` and `fabric-poc`. In Azure DevOps, create
+a pipeline that points to this YAML file and connect it to the GitHub
+repository.
 
 ## 2. Bronze ingestion in Fabric
 
@@ -64,28 +75,30 @@ Bronze Lakehouse instead of configuring an external shortcut.
 
 ## 3. Bronze to Silver
 
-Import `notebooks/01_bronze_to_silver.py` into a Fabric notebook. Attach the
-Bronze and Silver Lakehouses, set `BRONZE_TRANSACTIONS_PATH` to the JSON file
-path, and set `SILVER_TRANSACTIONS_TABLE` to the fully qualified Silver table
-name if the defaults do not match the workspace. For example, an absolute
-OneLake ABFS path can be supplied for the Bronze JSON file.
+The live Bronze-to-Silver notebook was created in the Fabric workspace. Attach
+the Bronze and Silver Lakehouses to it, read the Bronze file with its ABFS path
+when Bronze isn't the default Lakehouse, and save the output table while Silver
+is the default Lakehouse. The native notebook definition is versioned under
+`fabric_workspace/` through Fabric Git integration.
 
-The reusable transformation is in
-`enterprise_sales_data_hub/cleansing.py`; it can be validated locally with
-pytest before publishing or running the notebook.
+`notebooks/01_bronze_to_silver.py` documents a Python entry point for local
+development. Its Fabric-specific paths and runtime imports need to be
+configured for the workspace before using it there. The reusable cleansing
+transformation is in `enterprise_sales_data_hub/cleansing.py` and is covered by
+local pytest tests.
 
 ## 4. Silver to Gold star schema
 
-The script in `sql/01_gold_star_schema.sql` uses Fabric Warehouse CTAS syntax
-and expects a Fabric Warehouse named `sales_gold_wh`, with the Silver Lakehouse
-`sales_silver_lh` in the same workspace. Run it in that Warehouse's SQL
-editor. It recreates the customer and date dimensions and sales fact table on
-each run.
+The live Gold layer was built with Spark and saved as Delta tables in
+`sales_gold_lh`: `dim_customer`, `dim_date`, and `fact_sales`. The reusable
+transformations live in `enterprise_sales_data_hub/gold_model.py`; the
+`notebooks/02_silver_to_gold.py` entry point reads the Silver Delta table and
+writes these three tables to the notebook's default Lakehouse.
 
-The Lakehouse SQL Analytics Endpoint is read-only for data-definition and
-write operations; do not run this CTAS script against that endpoint. If Gold
-must be stored in `sales_gold_lh`, implement the table writes through Spark
-instead.
+Before running the entry point in Fabric, pass the Silver table's copied ABFS
+path to `process_silver_to_gold(silver_table_path=...)` and set
+`sales_gold_lh` as the default Lakehouse. The write uses `overwrite`, so each
+run replaces the existing Gold tables.
 
 ## 5. Local tests and Power BI
 
@@ -103,8 +116,8 @@ docker build -f docker/Dockerfile -t enterprise-sales-data-hub .
 docker run --rm enterprise-sales-data-hub
 ```
 
-In Fabric, create a semantic model over the Gold tables and use Direct Lake
-where supported by the workspace and model configuration. The Azure Pipeline
-currently validates Python and tests only; publishing Fabric items and binding
-deployment-pipeline stages require workspace-specific identities, connections,
-and deployment configuration and are not automated by this starter pipeline.
+In Fabric, the PoC semantic model uses Direct Lake on OneLake over the Gold
+tables. The Azure Pipeline validates Python and tests only; it does not deploy
+Fabric items. Workspace synchronization is handled separately by Fabric Git
+integration, while automated promotion between workspaces requires additional
+deployment-pipeline configuration.
